@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from app.ml.driver_behaviour import predict_from_raw_window
+from app.ml.lstm_anomaly import detect_anomaly
 
 app = FastAPI(title="ECU Guardian API", version="1.0.0")
 
@@ -18,6 +19,9 @@ class WindowRequest(BaseModel):
     rpm_values: List[float]
     speed_values: List[float]
     throttle_values: List[float]
+
+class SequenceRequest(BaseModel):
+    data: List[dict]
 
 @app.get("/health")
 def health():
@@ -35,6 +39,18 @@ def predict(body: WindowRequest):
             body.throttle_values
         )
 
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/driver/anomaly")
+def anomaly_detection(body: SequenceRequest):
+    try:
+        if len(body.data) < 50:
+            raise HTTPException(status_code=400, detail="Minimum 50 data points required")
+
+        result = detect_anomaly(body.data)
         return result
 
     except Exception as e:
